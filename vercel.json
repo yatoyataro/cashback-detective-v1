@@ -6,7 +6,7 @@
       "framework": "express",
       "buildCommand": "npm run build",
       "outputDirectory": "dist",
-      "installCommand": "npm ci",
+      "installCommand": "npm install --production=false",
       "devCommand": "npm run dev"
     },
     "frontend": {
