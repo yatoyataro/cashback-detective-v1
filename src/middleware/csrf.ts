@@ -12,12 +12,14 @@ export function csrfMiddleware(req: Request, res: Response, next: NextFunction):
 
   // Skip safe methods
   if (SAFE_METHODS.includes(req.method)) {
-    return next()
+    next()
+    return
   }
 
   // Validate token for unsafe methods
   if (!validateCsrfToken(req)) {
-    return res.status(403).json({ error: 'Invalid CSRF token' })
+    res.status(403).json({ error: 'Invalid CSRF token' })
+    return
   }
 
   next()

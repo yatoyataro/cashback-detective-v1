@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import request from 'supertest'
 import { app } from '../../src/app.js'
 
@@ -13,8 +13,10 @@ describe('Security middleware integration', () => {
   it('should set CSRF cookie on first request', async () => {
     const res = await request(app).get('/health')
     expect(res.headers['set-cookie']).toBeDefined()
-    const cookies = res.headers['set-cookie']
-    expect(cookies.some(c => c.includes('csrf_token='))).toBe(true)
+    const cookies = Array.isArray(res.headers['set-cookie'])
+      ? res.headers['set-cookie']
+      : [res.headers['set-cookie']]
+    expect(cookies.some((c: string) => c.includes('csrf_token='))).toBe(true)
   })
 
   it('should reject POST without CSRF token', async () => {

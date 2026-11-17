@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import type { Request } from 'express'
 
 export const CSRF_COOKIE_NAME = 'csrf_token'
 export const CSRF_HEADER_NAME = 'x-csrf-token'
@@ -7,9 +8,9 @@ export function generateCsrfToken(): string {
   return crypto.randomBytes(32).toString('base64url')
 }
 
-export function validateCsrfToken(req: { cookies?: Record<string, string>; headers?: Record<string, string> }): boolean {
+export function validateCsrfToken(req: Request): boolean {
   const cookieToken = req.cookies?.[CSRF_COOKIE_NAME]
-  const headerToken = req.headers?.[CSRF_HEADER_NAME]
+  const headerToken = req.headers[CSRF_HEADER_NAME] as string | undefined
 
   if (!cookieToken || !headerToken) return false
 
