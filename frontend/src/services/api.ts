@@ -72,7 +72,7 @@ export async function askQuestion(question: string): Promise<AskResult> {
 }
 
 export async function getTransactions(): Promise<TransactionsResult> {
-  const response = await fetch(`${API_BASE}/transactions`, {
+  const response = await fetch(`${API_BASE}/transactions/`, {
     method: 'GET',
     headers: getHeaders(),
     credentials: 'include'
