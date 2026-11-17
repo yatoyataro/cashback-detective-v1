@@ -32,6 +32,14 @@
       "destination": { "service": "backend" }
     },
     {
+      "source": "/transactions",
+      "destination": { "service": "backend" }
+    },
+    {
+      "source": "/transactions/",
+      "destination": { "service": "backend" }
+    },
+    {
       "source": "/transactions/:path*",
       "destination": { "service": "backend" }
     },
