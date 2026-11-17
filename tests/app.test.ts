@@ -1,16 +1,48 @@
-
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { app } from "../src/app.js";
 import { pool } from "../src/db.js";
+
+const CSRF_COOKIE_NAME = "csrf_token";
+const CSRF_HEADER_NAME = "x-csrf-token";
+
+let agent: ReturnType<typeof request.agent>;
+let csrfToken: string;
+
+async function getCsrfToken(): Promise<string> {
+  const res = await agent.get("/health");
+  const cookies = res.headers["set-cookie"];
+  if (cookies) {
+    const cookieArray = Array.isArray(cookies) ? cookies : [cookies];
+    for (const cookie of cookieArray) {
+      const match = cookie.match(new RegExp(`${CSRF_COOKIE_NAME}=([^;]+)`));
+      if (match) {
+        return match[1];
+      }
+    }
+  }
+  throw new Error("CSRF token not found");
+}
+
+beforeAll(async () => {
+  agent = request.agent(app);
+  csrfToken = await getCsrfToken();
+});
 
 afterAll(async () => {
   await pool.end();
 });
 
+function postWithCsrf(url: string, body: object) {
+  return agent
+    .post(url)
+    .set(CSRF_HEADER_NAME, csrfToken)
+    .send(body);
+}
+
 describe("Cashback Detective API", () => {
   it("returns a healthy status", async () => {
-    const response = await request(app).get("/health");
+    const response = await agent.get("/health");
 
     expect(response.status).toBe(200);
     expect(response.body.status).toBe("ok");
@@ -18,11 +50,9 @@ describe("Cashback Detective API", () => {
   });
 
   it("returns the correct investigation for an eligible transaction", async () => {
-    const response = await request(app)
-      .post("/ask")
-      .send({
-        question: "Investigate cashback for TX-1002."
-      });
+    const response = await postWithCsrf("/ask", {
+      question: "Investigate cashback for TX-1002."
+    });
 
     expect(response.status).toBe(200);
     expect(response.body.investigation.transactionId).toBe("TX-1002");
@@ -35,20 +65,16 @@ describe("Cashback Detective API", () => {
   });
 
   it("returns 404 for a nonexistent transaction", async () => {
-    const response = await request(app)
-      .post("/ask")
-      .send({
-        question: "Investigate cashback for TX-9999."
-      });
+    const response = await postWithCsrf("/ask", {
+      question: "Investigate cashback for TX-9999."
+    });
 
     expect(response.status).toBe(404);
     expect(response.body.error).toBe("Transaction not found.");
   });
 
   it("rejects an empty question", async () => {
-    const response = await request(app)
-      .post("/ask")
-      .send({ question: "   " });
+    const response = await postWithCsrf("/ask", { question: "   " });
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(
@@ -57,8 +83,7 @@ describe("Cashback Detective API", () => {
   });
 
   it("rejects a malformed transaction ID", async () => {
-    const response = await request(app)
-      .get("/investigate/TX-12");
+    const response = await agent.get("/investigate/TX-12");
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(
@@ -67,11 +92,9 @@ describe("Cashback Detective API", () => {
   });
 
   it("returns a safe explanation for a general question", async () => {
-    const response = await request(app)
-      .post("/ask")
-      .send({
-        question: "What is Cashback Detective, and how can it help me?"
-      });
+    const response = await postWithCsrf("/ask", {
+      question: "What is Cashback Detective, and how can it help me?"
+    });
 
     expect(response.status).toBe(200);
     expect(response.body.answer).toContain("demo assistant");
@@ -81,9 +104,9 @@ describe("Cashback Detective API", () => {
     );
     expect(response.body.investigation).toBeNull();
   });
-  
+
   it("lists transactions", async () => {
-    const response = await request(app).get("/transactions");
+    const response = await agent.get("/transactions");
 
     expect(response.status).toBe(200);
     expect(response.body.count).toBeGreaterThanOrEqual(4);
@@ -91,27 +114,25 @@ describe("Cashback Detective API", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: "TX-1001",
-          merchant: "Demo Store"
+          merchant: "Amazon"
         })
       ])
     );
   });
 
   it("creates a demo transaction and returns its investigation", async () => {
-    const response = await request(app)
-      .post("/transactions")
-      .send({
-        userId: "USER-1",
-        merchant: "Demo Store",
-        amount: 1200,
-        cashbackAmount: 60,
-        daysSincePurchase: 20,
-        status: "pending"
-      });
+    const response = await postWithCsrf("/transactions", {
+      userId: "USER-1",
+      merchant: "Amazon",
+      amount: 1200,
+      cashbackAmount: 60,
+      daysSincePurchase: 20,
+      status: "pending"
+    });
 
     expect(response.status).toBe(201);
     expect(response.body.transaction.id).toMatch(/^TX-\d+$/);
-    expect(response.body.transaction.merchant).toBe("Demo Store");
+    expect(response.body.transaction.merchant).toBe("Amazon");
     expect(response.body.investigation.decision).toBe(
       "investigation_eligible"
     );
@@ -124,32 +145,28 @@ describe("Cashback Detective API", () => {
   });
 
   it("rejects invalid transaction data", async () => {
-    const response = await request(app)
-      .post("/transactions")
-      .send({
-        userId: "USER-1",
-        merchant: "Demo Store",
-        amount: -100,
-        cashbackAmount: 10,
-        daysSincePurchase: 5,
-        status: "pending"
-      });
+    const response = await postWithCsrf("/transactions", {
+      userId: "USER-1",
+      merchant: "Amazon",
+      amount: -100,
+      cashbackAmount: 10,
+      daysSincePurchase: 5,
+      status: "pending"
+    });
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe("Invalid transaction data.");
   });
 
   it("rejects a transaction for an unknown merchant", async () => {
-    const response = await request(app)
-      .post("/transactions")
-      .send({
-        userId: "USER-1",
-        merchant: "Unknown Demo Merchant",
-        amount: 1200,
-        cashbackAmount: 60,
-        daysSincePurchase: 20,
-        status: "pending"
-      });
+    const response = await postWithCsrf("/transactions", {
+      userId: "USER-1",
+      merchant: "Unknown Demo Merchant",
+      amount: 1200,
+      cashbackAmount: 60,
+      daysSincePurchase: 20,
+      status: "pending"
+    });
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe(
