@@ -8,8 +8,8 @@
     "expectedDecision": "investigation_eligible",
     "expectedAnswerSource": "rules_engine",
     "expectedEvidence": {
-      "purchaseAmount": 2000,
-      "expectedCashback": 100,
+      "purchaseAmount": 200,
+      "expectedCashback": 10,
       "daysSincePurchase": 20,
       "investigationAfterDays": 14
     },
