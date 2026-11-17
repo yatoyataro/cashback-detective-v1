@@ -1,3 +1,5 @@
+# .github/workflows/cd.yml
+# Continuous Deployment workflow
 name: Deploy
 
 on:
@@ -17,4 +19,13 @@ jobs:
         # Example for Fly.io:
         # uses: superfly/flyctl-actions@setup-flyctl
         # run: flyctl deploy --remote-only
-        run: echo "Deployment step - configure your provider here"
+        # Example for Railway:
+        # run: npx railway deploy --token ${{ secrets.RAILWAY_TOKEN }}
+        # Example for Vercel (frontend):
+        # uses: amondnet/vercel-action@v25
+        # with:
+        #   vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        #   vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        #   vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        #   working-directory: ./frontend
+        run: echo "Configure your deployment provider in this workflow"

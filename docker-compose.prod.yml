@@ -1,5 +1,6 @@
+# docker-compose.prod.yml
+# Production environment using Neon PostgreSQL via environment variables
 version: '3.8'
-
 services:
   app:
     build:
@@ -12,6 +13,16 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       PORT: 3000
       NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET}
+      LOG_LEVEL: info
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      ENABLE_AI_GENERAL_QUESTIONS: ${ENABLE_AI_GENERAL_QUESTIONS:-false}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
+      AUTH_RATE_LIMIT_WINDOW_MS: ${AUTH_RATE_LIMIT_WINDOW_MS:-900000}
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-10}
+      STRICT_RATE_LIMIT_WINDOW_MS: ${STRICT_RATE_LIMIT_WINDOW_MS:-60000}
+      STRICT_RATE_LIMIT_MAX: ${STRICT_RATE_LIMIT_MAX:-10}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]

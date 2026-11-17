@@ -1,3 +1,5 @@
+# .github/workflows/ci.yml
+# Continuous Integration workflow
 name: CI
 
 on:
@@ -41,7 +43,27 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+      - name: Run schema migration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cashback_detective
+        run: |
+          node -e "
+            import pg from 'pg';
+            import fs from 'fs';
+            const { Pool } = pg;
+            const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+            const sql = fs.readFileSync('neon/migrations/001_initial_schema.sql', 'utf-8');
+            await pool.query(sql);
+            const sql2 = fs.readFileSync('neon/migrations/002_seed_data.sql', 'utf-8');
+            await pool.query(sql2);
+            await pool.end();
+            console.log('Schema and seed data loaded');
+          "
       - name: Run evals
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cashback_detective
-        run: npm run eval
+          EVAL_BASE_URL: http://localhost:3000
+        run: |
+          npm run dev &
+          sleep 5
+          npm run eval

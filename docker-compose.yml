@@ -1,5 +1,6 @@
+# docker-compose.yml
+# Development environment with local PostgreSQL
 version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -28,6 +29,8 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cashback_detective
       PORT: 3000
       NODE_ENV: development
+      LOG_LEVEL: debug
+      JWT_SECRET: dev-secret-change-in-production
     depends_on:
       postgres:
         condition: service_healthy

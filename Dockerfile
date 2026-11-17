@@ -1,6 +1,5 @@
-# Dockerfile for Cashback Detective
-# Multi-stage build for production-ready image
-
+# Dockerfile
+# Multi-stage build for Cashback Detective
 FROM node:22-alpine AS base
 WORKDIR /app
 

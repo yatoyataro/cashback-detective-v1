@@ -11,9 +11,6 @@ coverage
 .idea
 Dockerfile
 docker-compose*.yml
-.superpowers
-docs
-evals
-neon
-*.md
-!frontend/dist
+.dockerignore
+evals/reports
+docs/superpowers
