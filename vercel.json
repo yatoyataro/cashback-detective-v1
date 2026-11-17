@@ -14,15 +14,7 @@
       "buildCommand": "npm run build",
       "outputDirectory": "dist",
       "installCommand": "npm ci",
-      "devCommand": "npm run dev",
-      "bindings": [
-        {
-          "type": "service",
-          "service": "backend",
-          "format": "url",
-          "env": "VITE_BACKEND_URL"
-        }
-      ]
+      "devCommand": "npm run dev"
     }
   },
   "rewrites": [

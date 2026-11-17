@@ -1,8 +1,7 @@
-// API base URL - uses Vercel binding BACKEND_URL in production, VITE_API_BASE for preview, localhost for dev
-// In Vite, process.env is not available at build time. BACKEND_URL is injected by Vercel as VITE_BACKEND_URL
-const API_BASE = import.meta.env.VITE_API_BASE ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000'
+// API base URL - uses relative paths so Vercel rewrites route to backend service
+// In development, Vite proxy handles /investigate, /transactions, /ask -> localhost:3000
+// In production (Vercel), rewrites in vercel.json handle routing to backend service
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 export interface InvestigationResult {
   transactionId: string

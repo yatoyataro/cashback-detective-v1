@@ -33,7 +33,7 @@ describe('api service', () => {
       const result = await investigateTransaction('TX-1001')
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:3000/investigate/TX-1001',
+        '/investigate/TX-1001',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -87,7 +87,7 @@ describe('api service', () => {
       const result = await askQuestion('What is Cashback Detective?')
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:3000/ask',
+        '/ask',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -123,7 +123,7 @@ describe('api service', () => {
       const result = await getTransactions()
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:3000/transactions/',
+        '/transactions/',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
