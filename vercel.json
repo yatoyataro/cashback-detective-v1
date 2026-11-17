@@ -28,15 +28,7 @@
   },
   "rewrites": [
     {
-      "source": "/transactions",
-      "destination": { "service": "backend" }
-    },
-    {
-      "source": "/transactions/",
-      "destination": { "service": "backend" }
-    },
-    {
-      "source": "/transactions/:path*",
+      "source": "/transactions(.*)",
       "destination": { "service": "backend" }
     },
     {
