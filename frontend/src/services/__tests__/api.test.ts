@@ -123,7 +123,7 @@ describe('api service', () => {
       const result = await getTransactions()
 
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:3000/transactions',
+        'http://localhost:3000/transactions/',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
