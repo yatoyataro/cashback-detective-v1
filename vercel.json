@@ -28,7 +28,11 @@
   },
   "rewrites": [
     {
-      "source": "/transactions(.*)",
+      "source": "/transactions",
+      "destination": { "service": "backend" }
+    },
+    {
+      "source": "/transactions/(.*)",
       "destination": { "service": "backend" }
     },
     {
