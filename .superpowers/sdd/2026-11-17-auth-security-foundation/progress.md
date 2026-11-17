@@ -4,4 +4,5 @@ Task 1: complete (commits 6a4d8e5..1e70dab, tests: npx vitest run tests/auth/sec
 Task 2: complete (commits 1e70dab..3e82447, tests: npx vitest run tests/auth/password.test.ts → 7 passed)
 Task 3: complete (commits 3e82447..c9696ca, tests: npx vitest run tests/auth/cookies.test.ts → 5 passed)
 Task 4: complete (commits c9696ca..8fd43ae, tests: npx vitest run tests/auth/csrf.test.ts → 9 passed)
-Task 5: complete (commits 8fd43ae..HEAD, tests: npx vitest run tests/middleware/securityHeaders.test.ts → 6 passed)
+Task 5: complete (commits 8fd43ae..b4f81a9, tests: npx vitest run tests/middleware/securityHeaders.test.ts → 6 passed)
+Task 6: complete (commits b4f81a9..HEAD, tests: npx vitest run tests/middleware/httpsRedirect.test.ts → 4 passed)
