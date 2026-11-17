@@ -2,129 +2,242 @@
 
 ## Overview
 
-This guide covers deploying Cashback Detective to production using Docker and Neon PostgreSQL.
+This guide covers deploying Cashback Detective to production using Docker with Neon PostgreSQL.
 
 ## Prerequisites
 
-- Docker and Docker Compose
-- Neon PostgreSQL account (free tier available)
+- Neon account (free tier at https://console.neon.tech)
+- Docker and Docker Compose installed
 - Domain name (optional, for HTTPS)
 
 ## Neon Database Setup
 
 1. **Create a Neon Project**
    - Go to https://console.neon.tech
-   - Create a new project
-   - Choose a region close to your deployment target
+   - Create a new project (e.g., "cashback-detective")
+   - Note the project region
 
 2. **Get Connection Strings**
-   - **Pooled (for application)**: `postgres://user:pass@ep-xxx-pooler.region.neon.tech/db?sslmode=require`
-     - Uses pgbouncer, max 100 connections
+   - **Pooled (for app)**: `postgresql://user:pass@ep-xxx-pooler.region.neon.tech/dbname?sslmode=require`
      - Use for application runtime
-   - **Direct (for migrations)**: `postgres://user:pass@ep-xxx.region.neon.tech/db?sslmode=require`
+     - Uses pgbouncer, max 100 connections
+   - **Direct (for migrations)**: `postgresql://user:pass@ep-xxx.region.neon.tech/dbname?sslmode=require`
+     - Use for schema changes, pg_dump
      - Direct to compute, supports prepared statements
-     - Use for schema changes, pg_dump, LISTEN/NOTIFY
 
 3. **Run Migrations**
    ```bash
-   # Using direct connection string
+   # Using direct connection for migrations
    psql "$DIRECT_DATABASE_URL" -f neon/migrations/001_initial_schema.sql
    psql "$DIRECT_DATABASE_URL" -f neon/migrations/002_seed_data.sql
    ```
 
-4. **Set Environment Variable**
-   ```bash
-   # Use pooled connection for production
-   DATABASE_URL=postgres://user:pass@ep-xxx-pooler.region.neon.tech/db?sslmode=require
-   ```
-
-## Docker Deployment
-
-### Build Production Image
-
-```bash
-docker compose -f docker-compose.prod.yml build
-```
-
-### Run with Neon
-
-```bash
-# Set DATABASE_URL in environment
-export DATABASE_URL="your-neon-pooled-connection-string"
-docker compose -f docker-compose.prod.yml up -d
-```
-
-### Health Check
-
-The production image includes a health check endpoint at `/health`:
-
-```bash
-curl http://localhost:3000/health
-# Returns: {"status":"ok","service":"Cashback Detective"}
-```
-
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | Neon pooled connection string |
-| `PORT` | No | Server port (default: 3000) |
-| `NODE_ENV` | No | `production` enables production logging |
-| `LOG_LEVEL` | No | Log level: `debug`, `info`, `warn`, `error` |
-| `JWT_SECRET` | No | Secret for JWT tokens (change in production!) |
-| `OLLAMA_MODEL` | No | Ollama model for AI features |
-| `ENABLE_AI_GENERAL_QUESTIONS` | No | Enable AI for general questions |
+Create a `.env.production` file or set environment variables:
 
-## Production Checklist
+```bash
+# Required
+DATABASE_URL=postgresql://user:pass@ep-xxx-pooler.region.neon.tech/dbname?sslmode=require
+JWT_SECRET=your-32-char-minimum-secret-generated-with-openssl-rand-base64-32
 
-- [ ] Use Neon pooled connection string (`-pooler` suffix)
-- [ ] Set strong `JWT_SECRET` in production
-- [ ] Configure `LOG_LEVEL=info` or `warn`
-- [ ] Set up reverse proxy (nginx, Caddy) for HTTPS
-- [ ] Configure domain and SSL certificates
-- [ ] Set up monitoring/alerting
-- [ ] Configure backup strategy (Neon provides point-in-time recovery)
+# Optional
+PORT=3000
+NODE_ENV=production
+LOG_LEVEL=info
+OLLAMA_MODEL=qwen3:4b
+ENABLE_AI_GENERAL_QUESTIONS=false
 
-## CI/CD Pipeline
+# Rate limiting (optional tuning)
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=100
+AUTH_RATE_LIMIT_WINDOW_MS=900000
+AUTH_RATE_LIMIT_MAX=10
+STRICT_RATE_LIMIT_WINDOW_MS=60000
+STRICT_RATE_LIMIT_MAX=10
+```
 
-The project includes GitHub Actions workflows:
+## Docker Production Deployment
 
-- **CI** (`.github/workflows/ci.yml`): Runs on push/PR to main
-  - Lint and test backend
-  - Lint frontend
-  - Run evaluations against PostgreSQL
+### Option 1: Docker Compose (Single Server)
 
-- **Deploy** (`.github/workflows/cd.yml`): Runs on push to main
-  - Configure your deployment provider (Render, Fly.io, Railway, etc.)
+```bash
+# Build and start
+docker compose -f docker-compose.prod.yml up --build -d
 
-- **Scheduled Evaluations** (`.github/workflows/eval.yml`): Daily at 2 AM UTC
-  - Runs full evaluation suite against test database
+# View logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Stop
+docker compose -f docker-compose.prod.yml down
+```
+
+### Option 2: Manual Docker Build
+
+```bash
+# Build image
+docker build -t cashback-detective .
+
+# Run container
+docker run -d \
+  --name cashback-detective \
+  -p 3000:3000 \
+  --env-file .env.production \
+  --restart unless-stopped \
+  cashback-detective
+```
+
+## Reverse Proxy (Nginx/Traefik/Caddy)
+
+For production HTTPS, use a reverse proxy:
+
+### Caddy (Automatic HTTPS)
+
+```caddy
+# Caddyfile
+your-domain.com {
+    reverse_proxy localhost:3000
+}
+```
+
+```bash
+docker run -d \
+  -p 80:80 -p 443:443 \
+  -v $PWD/Caddyfile:/etc/caddy/Caddyfile \
+  -v caddy_data:/data \
+  -v caddy_config:/config \
+  caddy:2-alpine
+```
+
+### Nginx
+
+```nginx
+# /etc/nginx/sites-available/cashback-detective
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+## Cloud Provider Deployment
+
+### Render
+
+1. Create a new Web Service
+2. Connect GitHub repository
+3. Build Command: `npm ci && npm run build`
+4. Start Command: `npm start`
+5. Add environment variables in dashboard
+6. Add PostgreSQL database (or use external Neon)
+
+### Fly.io
+
+```bash
+flyctl launch --name cashback-detective --region sea
+flyctl secrets set DATABASE_URL=... JWT_SECRET=...
+flyctl deploy
+```
+
+### Railway
+
+```bash
+railway login
+railway link
+railway variables set DATABASE_URL=... JWT_SECRET=...
+railway up
+```
+
+### Vercel (Frontend Only)
+
+```bash
+cd frontend
+vercel --prod
+```
+- Set `VITE_API_BASE` to your backend URL
+
+## Health Checks
+
+The application exposes `/health` endpoint:
+
+```bash
+curl https://your-domain.com/health
+# {"status":"ok","service":"Cashback Detective"}
+```
+
+Docker health check (in docker-compose.prod.yml):
+```yaml
+healthcheck:
+  test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 10s
+```
+
+## Monitoring
+
+### Logs
+
+Structured JSON logs via Pino:
+```bash
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+### Key Metrics to Monitor
+
+- HTTP request latency (via requestLogger middleware)
+- Error rates (5xx responses)
+- Database connection pool usage
+- Rate limit hits (429 responses)
+- Neon compute hours (in Neon dashboard)
+
+## Backup & Recovery
+
+Neon provides:
+- Point-in-time recovery (6 hours on free tier)
+- Manual snapshots (1 on free tier)
+
+For additional safety:
+```bash
+# Backup schema + data
+pg_dump "$DIRECT_DATABASE_URL" > backup.sql
+
+# Restore
+psql "$DIRECT_DATABASE_URL" < backup.sql
+```
+
+## Security Checklist
+
+- [ ] Strong JWT_SECRET (32+ chars, generated with `openssl rand -base64 32`)
+- [ ] HTTPS enforced (reverse proxy with valid TLS cert)
+- [ ] Rate limiting configured
+- [ ] Secure cookies (HTTPS required for `secure: true`)
+- [ ] CSRF protection enabled
+- [ ] Helmet security headers active
+- [ ] Database SSL required (`sslmode=require`)
+- [ ] No debug logging in production (`LOG_LEVEL=info` or `warn`)
+- [ ] Admin routes protected with JWT + role check
 
 ## Scaling Considerations
 
-- **Neon Free Tier**: 100 projects, 1 GB/project, 100 CU-hours/month
-- **Connection Pooling**: Neon's pgbouncer handles up to 100 connections
-- **Auto-suspend**: After 5 minutes inactivity, scales to zero (zero cost)
-- **Auto-resume**: ~100-500ms on first connection
-- **Horizontal Scaling**: Run multiple containers behind load balancer
-
-## Troubleshooting
-
-### Connection Issues
-
-1. Verify Neon project is not suspended (check console)
-2. Use pooled connection string for application
-3. Check firewall/security groups allow outbound PostgreSQL (port 5432)
-4. Verify SSL mode is `require` in connection string
-
-### Migration Failures
-
-1. Use **direct** connection string for migrations
-2. Check Neon project has sufficient storage
-3. Verify SQL syntax compatibility with PostgreSQL 16
-
-### Performance
-
-1. Monitor Neon compute hours in console
-2. Use connection pooling (already configured in `db.ts`)
-3. Consider read replicas for read-heavy workloads
+- **Horizontal**: Run multiple containers behind load balancer
+- **Database**: Neon auto-scales compute; connection pooling via pgbouncer
+- **Rate limiting**: Adjust `RATE_LIMIT_MAX` based on traffic
+- **Frontend**: Deploy static assets to CDN (Vercel, Netlify, Cloudflare Pages)

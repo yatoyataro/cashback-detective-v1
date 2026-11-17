@@ -2,224 +2,227 @@
 
 ## Why Neon?
 
-Neon is a serverless PostgreSQL platform with unique advantages for this project:
-
-- **Auto-suspend**: Scales to zero after 5 minutes of inactivity (zero cost)
-- **Auto-resume**: Resumes in ~100-500ms on first connection (typically under 200ms)
-- **No keep-alive needed**: Unlike Supabase (pauses after 1 week, manual resume), Neon's suspend/resume is fully automatic
-- **Built-in connection pooling**: pgbouncer with 100 connection limit
-- **Free tier**: 100 projects, 1 GB/project, 100 CU-hours/month
-- **Point-in-time recovery**: 6 hours + 1 manual snapshot
-- **Branching**: 10 branches per project for development
+- **Serverless PostgreSQL**: Auto-scales to zero when idle
+- **No Keep-Alive Needed**: Unlike Supabase (pauses after 1 week), Neon suspends after 5 min and resumes in ~100ms automatically
+- **Free Tier**: 100 projects, 1 GB storage, 100 CU-hours/month
+- **Branch & Revert**: Git-like branching for schema changes
+- **Connection Pooling**: Built-in pgbouncer (use `-pooler` hostname)
 
 ## Step-by-Step Setup
 
 ### 1. Create Neon Account
 
 1. Go to https://console.neon.tech
-2. Sign up with GitHub, Google, or email
-3. Verify email if required
+2. Sign up with GitHub, GitLab, or email
+3. Create organization (or use personal)
 
 ### 2. Create Project
 
-1. Click "Create a project"
-2. Choose:
-   - **Project name**: `cashback-detective` (or your preferred name)
-   - **PostgreSQL version**: 16 (latest)
-   - **Region**: Choose closest to your deployment (e.g., `us-east-1`, `eu-west-1`)
-   - **Compute size**: Start with `0.25 CU` (free tier default)
-3. Click "Create project"
+1. Click "Create Project"
+2. Name: `cashback-detective` (or your choice)
+4. Region: Choose closest to your users/deployment
+5. PostgreSQL version: 16 (default)
+6. Click "Create Project"
 
 ### 3. Get Connection Strings
 
-After project creation, you'll see connection details. You need two strings:
+After project creation, you'll see connection details:
 
-#### Pooled Connection (for Application)
+**Pooled Connection (for Application)**
 ```
-postgres://user:password@ep-xxx-pooler.region.neon.tech/dbname?sslmode=require
+postgresql://user:password@ep-xxx-pooler.region.neon.tech/dbname?sslmode=require
 ```
-- Contains `-pooler` in hostname
-- Uses pgbouncer for connection pooling
-- **Use this for `DATABASE_URL` in production**
+- Has `-pooler` in hostname
+- Uses pgbouncer connection pooling
+- Max 100 connections
+- **Use for DATABASE_URL in production**
 
-#### Direct Connection (for Migrations)
+**Direct Connection (for Migrations)**
 ```
-postgres://user:password@ep-xxx.region.neon.tech/dbname?sslmode=require
+postgresql://user:password@ep-xxx.region.neon.tech/dbname?sslmode=require
 ```
+- No `-pooler` in hostname
 - Direct to compute instance
 - Supports prepared statements
-- **Use this for running migrations**
+- **Use for schema migrations, pg_dump, psql**
 
 ### 4. Configure Environment
 
-Create `.env` file in project root:
-
 ```bash
-# Use pooled connection for application
-DATABASE_URL=postgres://user:password@ep-xxx-pooler.region.neon.tech/dbname?sslmode=require
-
-# Optional: for local development with different database
-# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/cashback_detective
-
-PORT=3000
-NODE_ENV=production
-LOG_LEVEL=info
-
-# Change this in production!
-JWT_SECRET=your-super-secret-key-here
-
-# AI features (optional)
-OLLAMA_MODEL=qwen3:4b
-ENABLE_AI_GENERAL_QUESTIONS=false
+# .env (development) or production environment variables
+DATABASE_URL=postgresql://user:password@ep-xxx-pooler.region.neon.tech/dbname?sslmode=require
+# Optional for migrations:
+# DIRECT_DATABASE_URL=postgresql://user:password@ep-xxx.region.neon.tech/dbname?sslmode=require
 ```
 
 ### 5. Run Migrations
 
-Using the **direct** connection string:
-
+**Using Neon CLI (Recommended)**
 ```bash
-# Option 1: Using psql with direct URL
-export DIRECT_DATABASE_URL="postgres://user:password@ep-xxx.region.neon.tech/dbname?sslmode=require"
+# Install Neon CLI
+npm i -g @neondatabase/cli
+
+# Login
+neon auth
+
+# Run migrations using direct connection
+neon sql < neon/migrations/001_initial_schema.sql --project-id your-project-id
+neon sql < neon/migrations/002_seed_data.sql --project-id your-project-id
+```
+
+**Using psql (Direct Connection)**
+```bash
+# Schema
 psql "$DIRECT_DATABASE_URL" -f neon/migrations/001_initial_schema.sql
+
+# Seed data
 psql "$DIRECT_DATABASE_URL" -f neon/migrations/002_seed_data.sql
-
-# Option 2: Using Neon CLI (if installed)
-neon sql --project-id <project-id> < neon/migrations/001_initial_schema.sql
-neon sql --project-id <project-id> < neon/migrations/002_seed_data.sql
 ```
 
-### 6. Verify Setup
+**Using Node.js (Pooled Connection - Works for Both)**
+```javascript
+// The app's db.ts handles both pooled and direct automatically
+// Just run the application - it will connect and work
+npm run dev
+```
 
-Start the application and test:
+### 6. Verify Connection
 
 ```bash
-npm run build
-npm start
+# Test query
+psql "$DATABASE_URL" -c "SELECT * FROM merchant_policies;"
+
+# Expected output:
+ merchant_name | investigation_after_days
+---------------+--------------------------
+ Amazon        |                       14
+ eBay          |                       21
+ Walmart       |                       14
+ Target        |                       14
+ Best Buy      |                       30
+(5 rows)
 ```
 
-In another terminal:
-```bash
-curl http://localhost:3000/health
-curl http://localhost:3000/transactions
-curl -X POST http://localhost:3000/ask -H "Content-Type: application/json" -d '{"question": "What about TX-1001?"}'
-```
+## Neon Behavior: Auto-Suspend/Resume
 
-Run evaluations:
-```bash
-npm run eval
-```
+### How It Works
 
-## Neon Free Tier Limits
-
-| Resource | Limit |
-|----------|-------|
-| Projects per organization | 100 |
-| Storage per project | 1 GB |
-| Compute hours per month | 100 CU-hours |
-| Branches per project | 10 |
-| Point-in-time recovery | 6 hours |
-| Manual snapshots | 1 |
-
-## Connection Pooling Details
-
-Neon uses pgbouncer for connection pooling:
-
-- **Pooled connections**: Up to 100 concurrent connections
-- **Transaction pooling mode**: Connections returned to pool after each transaction
-- **Prepared statements**: Disabled for pooled connections (handled in `db.ts`)
-- **Idle timeout**: Configured to 10 seconds for serverless
-
-## Auto-Suspend/Resume Behavior
-
-### Suspend
-- Triggers after **5 minutes of inactivity** (no active connections)
-- Compute scales to zero
-- **Zero cost** while suspended
-- Storage persists (counts toward 1 GB limit)
-
-### Resume
-- Triggered by **first connection attempt**
-- Resume time: **~100-500ms** (typically under 200ms)
-- Transparent to application - pg client handles retry automatically
-- No application code changes needed
+| Event | Behavior |
+|-------|----------|
+| No connections for 5 min | Compute suspends (scales to zero) |
+| First connection after suspend | Auto-resumes in ~100-500ms |
+| While suspended | Zero compute cost |
+| Connection retry | pg client handles transparently |
 
 ### No Keep-Alive Required!
 
-Unlike Supabase (which pauses after 1 week and requires manual resume), Neon's suspend/resume cycle is fully automatic. Your application will experience a slight delay (~200ms) on the first request after idle period, then normal performance.
+Unlike Supabase (which pauses after 1 week of inactivity and requires manual resume), Neon's suspend/resume is **fully automatic**. Your app will work after idle periods without any configuration.
+
+### Connection String Differences
+
+| Use Case | Connection String |
+|----------|-------------------|
+| Application runtime | Pooled (`-pooler`) |
+| Migrations (schema changes) | Direct (no `-pooler`) |
+| pg_dump / pg_restore | Direct |
+| LISTEN/NOTIFY | Direct |
+| Prisma/Drizzle migrations | Direct |
+
+The app's `src/db.ts` automatically detects Neon and configures the pool appropriately:
+- `max: 20` for Neon (pgbouncer handles pooling)
+- `idleTimeoutMillis: 10000` (shorter for serverless)
+- `allowExitOnIdle: true` (allows pool to drain)
+
+## Free Tier Limits
+
+| Resource | Limit |
+|----------|-------|
+| Projects per org | 100 |
+| Storage per project | 1 GB |
+| Compute hours/month | 100 CU-hours |
+| Branches per project | 10 |
+| Point-in-time recovery | 6 hours + 1 manual snapshot |
+| Max connections (pooled) | 100 |
+
+**Estimation**: A typical demo app with occasional use will consume ~1-5 CU-hours/month.
+
+## Branching (Optional)
+
+Neon supports database branching for safe schema changes:
+
+```bash
+# Create branch
+neon branches create --name feature/new-schema --project-id your-project-id
+
+# Get branch connection string
+neon branches connection-string feature/new-schema --project-id your-project-id
+
+# Test migrations on branch
+psql "$BRANCH_DIRECT_URL" -f neon/migrations/003_new_feature.sql
+
+# Promote to main when ready
+neon branches promote feature/new-schema --project-id your-project-id
+```
+
+## Monitoring
+
+- **Neon Dashboard**: https://console.neon.tech → Project → Monitoring
+- **Metrics**: CPU, memory, connections, storage, compute hours
+- **Logs**: Query logs, slow queries, errors
 
 ## Troubleshooting
 
 ### "prepared statement does not exist" Error
 
-This happens when using pooled connections with prepared statements. The `db.ts` automatically disables prepared statements for Neon connections:
+This happens when using pooled connection with prepared statements. The app disables them for Neon:
 
 ```typescript
-const isNeon = databaseUrl.includes('neon.tech') || databaseUrl.includes('-pooler.');
-
-// In pool config:
+// In src/db.ts
 ...(isNeon && { allowExitOnIdle: true })
 ```
 
-### Connection Timeout
+### Connection Timeouts on First Request After Idle
 
-If connections timeout:
-1. Verify using **pooled** connection string for application
-2. Check Neon project is not suspended (check console)
-3. Increase `connectionTimeoutMillis` in `db.ts` if needed
+First request after suspend may take 200-500ms. This is normal. Subsequent requests are fast.
 
-### Migration Fails
+### SSL Mode Issues
 
-1. Use **direct** connection string for migrations
-2. Ensure Neon project has available compute (not suspended)
-3. Check SQL syntax compatibility with PostgreSQL 16
-
-### Out of Compute Hours
-
-Free tier: 100 CU-hours/month
-- 0.25 CU × 24 hours × 30 days = 180 CU-hours (if running 24/7)
-- **Solution**: Auto-suspend saves hours when idle
-- Monitor usage in Neon console
-
-## Production Best Practices
-
-1. **Use pooled connection** for application runtime
-2. **Use direct connection** only for migrations/admin tasks
-3. **Set strong JWT_SECRET** in production
-4. **Monitor compute hours** in Neon dashboard
-5. **Set up alerts** for storage/compute limits
-6. **Use branching** for schema changes: create branch, migrate, test, then merge
-7. **Enable point-in-time recovery** for disaster recovery
-
-## Useful Commands
-
-```bash
-# Check Neon project status
-neon projects list
-
-# View compute hours usage
-neon projects describe <project-id>
-
-# Create branch for schema changes
-neon branches create <project-id> --name feature/new-schema
-
-# Run SQL on branch
-neon sql --branch feature/new-schema < migration.sql
-
-# Delete branch after merge
-neon branches delete <project-id> feature/new-schema
+Always use `sslmode=require` (or `verify-full`):
+```
+postgresql://user:pass@ep-xxx-pooler.region.neon.tech/dbname?sslmode=require
 ```
 
-## Comparison: Neon vs Supabase
+### "relation does not exist" Error
 
-| Feature | Neon | Supabase |
-|---------|------|----------|
-| Auto-suspend | ✅ 5 min | ❌ 1 week |
-| Auto-resume | ✅ ~100ms | ❌ Manual |
-| Keep-alive needed | ❌ No | ✅ Yes |
-| Connection pooling | ✅ Built-in pgbouncer | ✅ Supavisor |
-| Branching | ✅ 10 free | ❌ Paid |
-| Free tier storage | 1 GB | 500 MB |
-| Free tier compute | 100 CU-hrs | 2 GB bandwidth |
-| Point-in-time recovery | 6 hours | 7 days |
+Run migrations:
+```bash
+psql "$DIRECT_DATABASE_URL" -f neon/migrations/001_initial_schema.sql
+psql "$DIRECT_DATABASE_URL" -f neon/migrations/002_seed_data.sql
+```
 
-**Recommendation**: Neon for serverless apps with variable traffic; Supabase for apps needing auth, storage, realtime.
+## Migration from Local PostgreSQL
+
+If migrating from local PostgreSQL:
+
+1. Dump local database:
+   ```bash
+   pg_dump -U postgres -d cashback_detective > local_backup.sql
+   ```
+
+2. Import to Neon (using direct connection):
+   ```bash
+   psql "$DIRECT_DATABASE_URL" < local_backup.sql
+   ```
+
+3. Verify data:
+   ```bash
+   psql "$DATABASE_URL" -c "SELECT count(*) FROM transactions;"
+   ```
+
+## Security Best Practices
+
+- Never commit connection strings to git
+- Use GitHub Secrets for CI/CD
+- Rotate passwords periodically in Neon dashboard
+- Restrict IP access in Neon project settings (optional)
+- Use read-only users for analytics/reporting

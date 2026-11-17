@@ -2,28 +2,28 @@
 
 ## Base URL
 
-```
-Development: http://localhost:3000
-Production: https://your-domain.com
-```
+- Development: `http://localhost:3000`
+- Production: `https://your-domain.com`
 
 ## Authentication
 
-Most endpoints are public. Admin endpoints require JWT authentication:
+Most endpoints are public. Admin endpoints require JWT Bearer token with `role: "admin"`.
 
+```http
+Authorization: Bearer <jwt-token>
 ```
-Authorization: Bearer <token>
-```
+
+For SPA, JWT is also read from `auth_token` httpOnly cookie.
 
 ## Endpoints
 
 ### Health Check
 
-**GET** `/health`
+```http
+GET /health
+```
 
-Returns service status.
-
-**Response:**
+**Response (200)**
 ```json
 {
   "status": "ok",
@@ -33,26 +33,111 @@ Returns service status.
 
 ---
 
+### Investigate Transaction
+
+```http
+GET /investigate/:transactionId
+```
+
+**Path Parameters**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| transactionId | string | Yes | Transaction ID in format `TX-NNNN` |
+
+**Response (200)**
+```json
+{
+  "transactionId": "TX-1002",
+  "status": "pending",
+  "decision": "investigation_eligible",
+  "message": "The transaction has been pending for 20 days, which meets the demo threshold of 14 days.",
+  "nextAction": "Prepare a missing-cashback investigation for review.",
+  "evidence": {
+    "purchaseAmount": 200,
+    "expectedCashback": 10,
+    "daysSincePurchase": 20,
+    "investigationAfterDays": 14
+  }
+}
+```
+
+**Error Responses**
+- `400`: Invalid transaction ID format
+- `404`: Transaction not found
+- `500`: Server error
+
+---
+
+### Ask Question
+
+```http
+POST /ask
+Content-Type: application/json
+```
+
+**Request Body**
+```json
+{
+  "question": "Investigate cashback for TX-1001."
+}
+```
+
+**Response (200) - Transaction Found**
+```json
+{
+  "answer": "The transaction is 5 days old. The demo investigation threshold is 14 days.\n\nDecision: still_pending.\n\nNext action: Wait until the investigation threshold is reached, then check again.",
+  "investigation": {
+    "transactionId": "TX-1001",
+    "status": "pending",
+    "decision": "still_pending",
+    "message": "The transaction is 5 days old. The demo investigation threshold is 14 days.",
+    "nextAction": "Wait until the investigation threshold is reached, then check again.",
+    "evidence": {
+      "purchaseAmount": 150,
+      "expectedCashback": 7.5,
+      "daysSincePurchase": 5,
+      "investigationAfterDays": 14
+    }
+  },
+  "answerSource": "rules_engine"
+}
+```
+
+**Response (200) - General Question**
+```json
+{
+  "answer": "Cashback Detective is a demo assistant that checks fictional cashback transactions. Provide a transaction ID, such as TX-1001, and I'll check its status, apply the demo policy, and explain the next recommended action. I can't verify real ShopBack accounts or official ShopBack policies.",
+  "investigation": null,
+  "answerSource": "predefined"
+}
+```
+
+**Error Responses**
+- `400`: Empty question or invalid format
+- `404`: Transaction mentioned but not found
+- `500`: Server error
+
+---
+
 ### List Transactions
 
-**GET** `/transactions`
+```http
+GET /transactions
+```
 
-Returns paginated list of all transactions.
-
-**Response:**
+**Response (200)**
 ```json
 {
   "count": 4,
   "transactions": [
     {
       "id": "TX-1001",
-      "user_id": "USER-1",
-      "merchant_name": "Amazon",
-      "amount": "150.00",
-      "cashback_amount": "7.50",
-      "days_since_purchase": 5,
+      "merchant": "Amazon",
+      "amount": 150,
+      "cashbackAmount": 7.5,
+      "daysSincePurchase": 5,
       "status": "pending",
-      "created_at": "2024-01-15T10:30:00.000Z"
+      "userId": "USER-1"
     }
   ]
 }
@@ -62,154 +147,83 @@ Returns paginated list of all transactions.
 
 ### Create Transaction
 
-**POST** `/transactions`
+```http
+POST /transactions
+Content-Type: application/json
+```
 
-Creates a new transaction and returns investigation result.
-
-**Request Body:**
+**Request Body**
 ```json
 {
   "userId": "USER-1",
   "merchant": "Amazon",
-  "amount": 150.00,
-  "cashbackAmount": 7.50,
-  "daysSincePurchase": 5,
+  "amount": 15000,
+  "cashbackAmount": 750,
+  "daysSincePurchase": 20,
   "status": "pending"
 }
 ```
 
-**Validation Rules:**
-- `userId`: Format `USER-N` (e.g., `USER-1`)
-- `merchant`: Must exist in merchant_policies
-- `amount`: Positive number
-- `cashbackAmount`: Non-negative number
-- `daysSincePurchase`: Integer 0-36500
-- `status`: One of `pending`, `canceled`, `returned`, `credited`
+**Validation Rules**
+| Field | Type | Rules |
+|-------|------|-------|
+| userId | string | Format: `USER-\d+` |
+| merchant | string | 1-100 chars, must exist in merchant_policies |
+| amount | number | Positive, finite |
+| cashbackAmount | number | Non-negative, finite |
+| daysSincePurchase | integer | 0-36500 |
+| status | string | Enum: pending, canceled, returned, credited |
 
-**Success Response (201):**
+**Response (201)**
 ```json
 {
   "message": "Demo transaction created successfully.",
-  "transaction": { ... },
+  "transaction": {
+    "id": "TX-1005",
+    "userId": "USER-1",
+    "merchant": "Amazon",
+    "amount": 15000,
+    "cashbackAmount": 750,
+    "daysSincePurchase": 20,
+    "status": "pending",
+    "createdAt": "2026-11-17T12:00:00.000Z"
+  },
   "investigation": {
     "transactionId": "TX-1005",
     "status": "pending",
     "decision": "investigation_eligible",
-    "message": "Transaction TX-1005 is eligible for investigation.",
-    "nextAction": "Wait for the investigation period to complete.",
-    "evidence": {
-      "purchaseAmount": 150.00,
-      "expectedCashback": 7.50,
-      "daysSincePurchase": 5,
-      "investigationAfterDays": 14
-    }
+    "message": "The transaction has been pending for 20 days, which meets the demo threshold of 14 days.",
+    "nextAction": "Prepare a missing-cashback investigation for review.",
+    "evidence": { ... }
   }
 }
 ```
 
-**Error Responses:**
-- `400`: Invalid transaction data or no policy for merchant
+**Error Responses**
+- `400`: Validation error or unknown merchant
 - `500`: Server error
 
 ---
 
-### Investigate Transaction
+### Admin Endpoint
 
-**GET** `/investigate/:transactionId`
-
-Investigates a specific transaction by ID.
-
-**Path Parameters:**
-- `transactionId`: Format `TX-NNNN` (e.g., `TX-1001`)
-
-**Response (200):**
-```json
-{
-  "transactionId": "TX-1001",
-  "status": "pending",
-  "decision": "investigation_eligible",
-  "message": "Transaction TX-1001 is eligible for investigation.",
-  "nextAction": "Wait for the investigation period to complete.",
-  "evidence": {
-    "purchaseAmount": 150.00,
-    "expectedCashback": 7.50,
-    "daysSincePurchase": 5,
-    "investigationAfterDays": 14
-  }
-}
+```http
+GET /admin
+Authorization: Bearer <admin-jwt>
 ```
 
-**Error Responses:**
-- `400`: Invalid transaction ID format
-- `404`: Transaction not found
-- `500`: Server error
-
----
-
-### Ask Question
-
-**POST** `/ask`
-
-General Q&A endpoint. Detects transaction IDs in questions and automatically investigates.
-
-**Request Body:**
-```json
-{
-  "question": "What about TX-1001?"
-}
-```
-
-**Validation:**
-- `question`: String, 1-1000 characters
-
-**Response with Transaction ID (200):**
-```json
-{
-  "answer": "Transaction TX-1001 is eligible for investigation.\n\nDecision: investigation_eligible.\nNext action: Wait for the investigation period to complete.",
-  "investigation": { ... },
-  "answerSource": "rules_engine"
-}
-```
-
-**Response without Transaction ID (200):**
-```json
-{
-  "answer": "Cashback Detective is a demo assistant that checks fictional cashback transactions...",
-  "investigation": null,
-  "answerSource": "predefined"
-}
-```
-
-**Error Responses:**
-- `400`: Question missing or too long
-- `404`: Transaction mentioned but not found
-- `500`: Server error
-
----
-
-### Admin Routes
-
-**GET** `/admin/*`
-
-Requires valid JWT with `admin` role.
-
-**Headers:**
-```
-Authorization: Bearer <admin-token>
-```
-
-**Success Response (200):**
+**Response (200)**
 ```json
 {
   "message": "Admin access granted",
   "user": {
-    "userId": "admin-1",
+    "userId": "USER-1",
     "role": "admin"
   }
 }
 ```
 
-**Error Responses:**
+**Error Responses**
 - `401`: Missing or invalid token
 - `403`: Valid token but not admin role
 
@@ -219,57 +233,44 @@ Authorization: Bearer <admin-token>
 
 | Decision | Description |
 |----------|-------------|
-| `investigation_eligible` | Transaction meets criteria for investigation |
-| `investigation_not_required` | Transaction within normal period, no investigation needed |
-| `cashback_credited` | Cashback already credited |
-| `transaction_canceled` | Transaction was canceled |
-| `transaction_returned` | Transaction was returned |
+| `investigation_eligible` | Transaction meets threshold, ready for investigation |
+| `still_pending` | Transaction too recent, wait for threshold |
+| `ineligible` | Transaction canceled/returned |
+| `already_credited` | Cashback already credited |
+| `policy_unavailable` | No policy for merchant |
 
-## Rate Limits
+---
 
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| All endpoints | 100 requests | 15 minutes |
-| `/investigate` | 10 requests | 1 minute |
-| `/transactions` | 10 requests | 1 minute |
+## CSRF Protection
 
-Exceeding limits returns `429 Too Many Requests`.
+All POST endpoints require CSRF token via:
+- Header: `X-CSRF-Token: <token>`
+- Cookie: `csrf_token=<token>` (auto-set on first GET request)
+
+Token obtained from first GET request to `/health` or any GET endpoint.
+
+---
+
+## Rate Limiting
+
+| Endpoint | Window | Max Requests |
+|----------|--------|--------------|
+| General API | 15 min | 100 |
+| `/investigate` | 1 min | 10 |
+| `/transactions` | 1 min | 10 |
+| Auth endpoints | 15 min | 10 |
+
+Exceeded limits return `429 Too Many Requests`.
+
+---
 
 ## Error Format
 
-All errors follow this format:
 ```json
 {
-  "error": "Human-readable error message"
-}
-```
-
-Validation errors include details:
-```json
-{
-  "error": "Invalid transaction data.",
+  "error": "Human-readable error message",
   "details": [
-    { "field": "amount", "message": "Amount must be positive" }
+    { "field": "field.name", "message": "Validation error" }
   ]
 }
 ```
-
-## Transaction ID Format
-
-All transaction IDs must match regex: `^TX-\d{4}$`
-
-Examples: `TX-1001`, `TX-9999`
-
-## Merchant Policies
-
-Default merchants and investigation periods:
-
-| Merchant | Investigation After (days) |
-|----------|---------------------------|
-| Amazon | 14 |
-| eBay | 21 |
-| Walmart | 14 |
-| Target | 14 |
-| Best Buy | 30 |
-
-Add custom merchants via direct database insertion.

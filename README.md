@@ -1,6 +1,21 @@
 # Cashback Detective
 
-A full-stack TypeScript application for investigating fictional cashback transactions. Built with Express 5, Vue 3, and PostgreSQL (Neon serverless).
+A demo application for investigating fictional cashback transactions. Built with Express 5, Vue 3, TypeScript, and PostgreSQL (Neon serverless).
+
+## Features
+
+- **Transaction Investigation**: Check cashback status for transactions (TX-1001 to TX-1004)
+- **Chat Interface**: Ask general questions about cashback policies
+- **Transaction List**: View all demo transactions in a paginated table
+- **Secure by Default**: HTTPS enforcement, CSRF protection, secure cookies, rate limiting, helmet security headers
+- **Production Ready**: JWT authentication, structured logging, Docker support, CI/CD pipelines
+
+## Tech Stack
+
+- **Backend**: Node.js 22, TypeScript, Express 5, PostgreSQL (pg), Zod, JWT, Pino logging
+- **Frontend**: Vue 3, Vite, Vue Router, TypeScript, Vitest
+- **Database**: Neon serverless PostgreSQL (auto-suspend/resume, no keep-alive needed)
+- **Deployment**: Docker, GitHub Actions CI/CD
 
 ## Quick Start
 
@@ -10,7 +25,7 @@ A full-stack TypeScript application for investigating fictional cashback transac
 # Backend
 npm install
 cp .env.example .env
-# Edit .env with your DATABASE_URL
+# Edit .env with your DATABASE_URL (local PostgreSQL or Neon pooled connection)
 npm run dev
 
 # Frontend (separate terminal)
@@ -19,59 +34,61 @@ npm install
 npm run dev
 ```
 
-### Docker
+### Docker Development
 
 ```bash
 docker compose up --build
 ```
+- Backend: http://localhost:3000
+- Frontend: http://localhost:5173
+- PostgreSQL: localhost:5432
 
-### Neon Setup
+### Production with Neon
 
-1. Create Neon project at https://console.neon.tech
-2. Copy **pooled** connection string (has `-pooler` in hostname)
-3. Set DATABASE_URL in .env
-4. Run migrations:
-   ```bash
-   psql "$DATABASE_URL" -f neon/migrations/001_initial_schema.sql
-   psql "$DATABASE_URL" -f neon/migrations/002_seed_data.sql
-   ```
-5. **No keep-alive needed!** Auto-suspend/resume is automatic.
+```bash
+# 1. Create Neon project at https://console.neon.tech
+# 2. Copy POOLED connection string (has -pooler in hostname)
+# 3. Set DATABASE_URL in .env or environment
+# 4. Run migrations:
+psql "$DATABASE_URL" -f neon/migrations/001_initial_schema.sql
+psql "$DATABASE_URL" -f neon/migrations/002_seed_data.sql
+
+# 5. Deploy using docker-compose.prod.yml
+docker compose -f docker-compose.prod.yml up --build
+```
+
+**No keep-alive needed!** Neon auto-suspends after 5 min inactivity and resumes in ~100ms automatically.
 
 ## Project Structure
 
 ```
+cashback-detective/
 ├── src/                    # Backend source
-│   ├── app.ts             # Express app with routes
-│   ├── server.ts          # Server entry point
-│   ├── db.ts              # Database connection (Neon-aware)
-│   ├── cashback.ts        # Business logic for cashback investigation
+│   ├── app.ts             # Express app with all routes
+│   ├── server.ts          # Entry point
+│   ├── cashback.ts        # Business logic for investigation
 │   ├── repository.ts      # Database queries
-│   ├── data.ts            # TypeScript interfaces
-│   ├── agent.ts           # AI agent for general queries
-│   ├── agent-tools.ts     # Agent tool definitions
+│   ├── db.ts              # Neon-compatible pg pool
 │   ├── auth.ts            # JWT authentication
-│   ├── logger.ts          # Structured logging (pino)
-│   └── middleware/        # Express middleware
-│       ├── rateLimit.ts   # Rate limiting
-│       ├── auth.ts        # Auth middleware
-│       └── requestLogger.ts # Request logging
+│   ├── logger.ts          # Pino structured logging
+│   ├── config/env.ts      # Environment validation
+│   ├── auth/              # Auth utilities (password, cookies, CSRF)
+│   └── middleware/        # Security, rate limiting, logging
 ├── frontend/              # Vue 3 frontend
 │   ├── src/
-│   │   ├── views/         # Page components
+│   │   ├── views/         # Page components (Investigate, Transactions, Ask)
 │   │   ├── components/    # Reusable components
 │   │   ├── services/      # API client
-│   │   └── router/        # Vue Router
+│   │   └── router/        # Vue Router config
 │   └── ...
 ├── neon/
-│   └── migrations/        # SQL migrations
-├── evals/                 # Evaluation tests
-│   ├── run.ts             # Evaluation runner
-│   └── cases.json         # Test cases
+│   └── migrations/        # SQL migrations for Neon
+├── evals/                 # Evaluation test suite (16 cases)
+├── tests/                 # Unit & integration tests
 ├── .github/workflows/     # CI/CD pipelines
 ├── Dockerfile             # Multi-stage Docker build
-├── docker-compose.yml     # Development with local Postgres
-├── docker-compose.prod.yml # Production with Neon
-└── docs/                  # Documentation
+├── docker-compose.yml     # Local development
+└── docker-compose.prod.yml # Production
 ```
 
 ## API Endpoints
@@ -79,50 +96,48 @@ docker compose up --build
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Health check |
+| GET | `/investigate/:transactionId` | Investigate a transaction |
+| POST | `/ask` | Ask a question (general or transaction-specific) |
 | GET | `/transactions` | List all transactions |
-| POST | `/transactions` | Create new transaction |
-| GET | `/investigate/:transactionId` | Investigate transaction |
-| POST | `/ask` | Ask general question or investigate by TX-ID |
-| GET | `/admin/*` | Admin-only routes (requires JWT) |
+| POST | `/transactions` | Create a demo transaction |
+| GET | `/admin` | Admin endpoint (requires admin JWT) |
 
-## Transaction ID Format
+## Environment Variables
 
-All transaction IDs must follow the format `TX-NNNN` (e.g., `TX-1001`).
+See `.env.example` for all options.
 
-## Demo Data
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string (Neon pooled for production) |
+| `JWT_SECRET` | Yes | JWT signing secret (32+ chars in production) |
+| `PORT` | No | Server port (default: 3000) |
+| `NODE_ENV` | No | `development` or `production` |
+| `LOG_LEVEL` | No | `debug`, `info`, `warn`, `error` |
+| `OLLAMA_MODEL` | No | Ollama model for AI questions |
+| `ENABLE_AI_GENERAL_QUESTIONS` | No | Enable AI responses (`true`/`false`) |
 
-The seed data includes:
-- 5 merchant policies (Amazon, eBay, Walmart, Target, Best Buy)
-- 4 demo transactions (TX-1001 through TX-1004)
-
-## Evaluation
-
-Run the evaluation suite against a running server:
+## Testing
 
 ```bash
+# Backend tests
+npm run test
+
+# Frontend tests
+cd frontend && npm run test:unit
+
+# Evaluation suite (16 cases)
 npm run eval
 ```
 
-Or with custom URL:
-```bash
-EVAL_BASE_URL=http://localhost:3000 npm run eval
-```
+## Neon Free Tier Limits
 
-The evaluation tests 16 cases across:
-- Transaction decision logic
-- Error handling
-- Safe responses
-
-## Deployment
-
-See [docs/deployment.md](docs/deployment.md) for detailed deployment instructions.
-
-## Neon Advantages
-
-- **Auto-suspend**: After 5 minutes of inactivity, compute scales to zero (zero cost)
-- **Auto-resume**: First connection triggers resume in ~100-500ms (typically under 200ms)
-- **No keep-alive needed**: Unlike Supabase, Neon handles suspend/resume automatically
-- **Connection pooling**: Built-in pgbouncer with pooled connection strings
+- 100 projects per organization
+- 1 GB storage per project
+- 100 compute-hours (CU-hours) per month
+- Auto-suspend after 5 min inactivity
+- Auto-resume in ~100ms
+- 10 branches per project
+- Point-in-time recovery: 6 hours + 1 manual snapshot
 
 ## License
 
