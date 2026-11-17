@@ -1,6 +1,7 @@
 
 import { app } from "./app.js";
 import { checkDatabaseConnection, pool } from "./db.js";
+import { logger } from "./logger.js";
 
 const port = Number(process.env.PORT ?? 3000);
 
@@ -9,9 +10,7 @@ async function startServer() {
     await checkDatabaseConnection();
 
     const server = app.listen(port, () => {
-      console.log(
-        `Cashback Detective API running at http://localhost:${port}`
-      );
+      logger.info(`Cashback Detective API running at http://localhost:${port}`);
     });
 
     const shutdown = () => {
@@ -23,7 +22,7 @@ async function startServer() {
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
   } catch (error) {
-    console.error("Could not start the application:", error);
+    logger.error({ err: error }, "Could not start the application");
     await pool.end();
     process.exit(1);
   }

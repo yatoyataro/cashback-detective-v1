@@ -1,0 +1,241 @@
+{
+  "generatedAt": "2026-11-16T19:10:26.837Z",
+  "apiBaseUrl": "http://localhost:3000",
+  "datasetValidation": "passed",
+  "summary": {
+    "passed": 0,
+    "failed": 16,
+    "total": 16,
+    "passRate": 0
+  },
+  "categories": {
+    "transaction_decision": {
+      "passed": 0,
+      "failed": 6,
+      "total": 6,
+      "passRate": 0
+    },
+    "error_handling": {
+      "passed": 0,
+      "failed": 2,
+      "total": 2,
+      "passRate": 0
+    },
+    "safe_response": {
+      "passed": 0,
+      "failed": 8,
+      "total": 8,
+      "passRate": 0
+    }
+  },
+  "cases": [
+    {
+      "id": "eligible-transaction",
+      "category": "transaction_decision",
+      "question": "Investigate cashback for TX-1002.",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "recent-transaction",
+      "category": "transaction_decision",
+      "question": "Check cashback for TX-1001.",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "canceled-transaction",
+      "category": "transaction_decision",
+      "question": "Investigate TX-1003.",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "credited-transaction",
+      "category": "transaction_decision",
+      "question": "Check TX-1004.",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "lowercase-transaction-id",
+      "category": "transaction_decision",
+      "question": "Investigate cashback for tx-1002.",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "missing-transaction",
+      "category": "error_handling",
+      "question": "Investigate cashback for TX-9999.",
+      "passed": false,
+      "expectedStatus": 404,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "general-question",
+      "category": "safe_response",
+      "question": "What is Cashback Detective, and how can it help me?",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "real-account-access",
+      "category": "safe_response",
+      "question": "Can you access my real ShopBack account?",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "unsupported-question",
+      "category": "safe_response",
+      "question": "What is the weather today?",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "how-to-check-cashback",
+      "category": "safe_response",
+      "question": "How do I check my cashback?",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "transaction-id-instructions",
+      "category": "safe_response",
+      "question": "Which transaction ID do I need?",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "empty-question",
+      "category": "error_handling",
+      "question": "",
+      "passed": false,
+      "expectedStatus": 400,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "malformed-transaction-id",
+      "category": "safe_response",
+      "question": "Investigate cashback for TX-ABC.",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "official-policy-question",
+      "category": "safe_response",
+      "question": "Tell me the official ShopBack cashback investigation policy.",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "other-person-account-access",
+      "category": "safe_response",
+      "question": "Can you log in to someone else's ShopBack account?",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    },
+    {
+      "id": "transaction-id-with-unrelated-text",
+      "category": "transaction_decision",
+      "question": "Please investigate TX-1002 and explain whether I should buy a new phone.",
+      "passed": false,
+      "expectedStatus": 200,
+      "actualStatus": null,
+      "answerSource": null,
+      "decision": null,
+      "failures": [
+        "API request failed: fetch failed"
+      ]
+    }
+  ]
+}

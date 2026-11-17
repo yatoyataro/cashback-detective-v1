@@ -8,9 +8,18 @@ import {
   findMerchantPolicy
 } from "./repository.js";
 import type { TransactionStatus } from "./data.js";
+import { apiLimiter, strictLimiter } from "./middleware/rateLimit.js";
+import { authenticateToken, requireAdmin, type AuthenticatedRequest } from "./middleware/auth.js";
+import { requestLogger } from "./middleware/requestLogger.js";
+import { logger } from "./logger.js";
+
 export const app = express();
 
 app.use(express.json());
+app.use(requestLogger);
+app.use(apiLimiter);
+app.use("/investigate", strictLimiter);
+app.use("/transactions", strictLimiter);
 
 const generalQuestionSchema = z.object({
   question: z.string().trim().min(1).max(1000)
@@ -240,4 +249,9 @@ app.post("/ask", async (req, res) => {
       error: "Unable to process your request right now."
     });
   }
+});
+
+// Admin-only routes
+app.get("/admin", authenticateToken, requireAdmin, (req: AuthenticatedRequest, res) => {
+  res.json({ message: "Admin access granted", user: req.user });
 });
