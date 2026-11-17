@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { getAuthCookie } from "./auth/cookies.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-in-production";
 const JWT_EXPIRES = "7d";
@@ -19,3 +20,5 @@ export function verifyToken(token: string): TokenPayload | null {
     return null;
   }
 }
+
+export { getAuthCookie }
