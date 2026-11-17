@@ -1,5 +1,6 @@
 
 import express from "express";
+import cookieParser from "cookie-parser";
 import { z } from "zod";
 import { investigateCashback } from "./cashback.js";
 import {
@@ -11,11 +12,18 @@ import type { TransactionStatus } from "./data.js";
 import { apiLimiter, strictLimiter } from "./middleware/rateLimit.js";
 import { authenticateToken, requireAdmin, type AuthenticatedRequest } from "./middleware/auth.js";
 import { requestLogger } from "./middleware/requestLogger.js";
+import { securityHeadersMiddleware } from "./middleware/securityHeaders.js";
+import { httpsRedirectMiddleware } from "./middleware/httpsRedirect.js";
+import { csrfMiddleware } from "./middleware/csrf.js";
 import { logger } from "./logger.js";
 
 export const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
+app.use(httpsRedirectMiddleware);
+app.use(securityHeadersMiddleware);
+app.use(csrfMiddleware); // Apply to all routes, CSRF middleware skips safe methods
 app.use(requestLogger);
 app.use(apiLimiter);
 app.use("/investigate", strictLimiter);

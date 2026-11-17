@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 
-const CSRF_COOKIE_NAME = 'csrf_token'
-const CSRF_HEADER_NAME = 'x-csrf-token'
+export const CSRF_COOKIE_NAME = 'csrf_token'
+export const CSRF_HEADER_NAME = 'x-csrf-token'
 
 export function generateCsrfToken(): string {
   return crypto.randomBytes(32).toString('base64url')
