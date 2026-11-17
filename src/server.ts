@@ -2,15 +2,16 @@
 import { app } from "./app.js";
 import { checkDatabaseConnection, pool } from "./db.js";
 import { logger } from "./logger.js";
+import { getConfig } from "./config/env.js";
 
-const port = Number(process.env.PORT ?? 3000);
+const config = getConfig()
 
 async function startServer() {
   try {
     await checkDatabaseConnection();
 
-    const server = app.listen(port, () => {
-      logger.info(`Cashback Detective API running at http://localhost:${port}`);
+    const server = app.listen(config.port, () => {
+      logger.info(`Cashback Detective API running at http://localhost:${config.port} [${config.nodeEnv}]`);
     });
 
     const shutdown = () => {
