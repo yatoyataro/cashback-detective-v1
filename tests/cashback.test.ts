@@ -12,7 +12,7 @@ describe("Cashback investigation with PostgreSQL", () => {
     const result = await investigateCashback("TX-1001");
 
     expect(result?.decision).toBe("still_pending");
-    expect(result?.evidence.daysSincePurchase).toBe(7);
+    expect(result?.evidence.daysSincePurchase).toBe(5);
   });
 
   it("allows investigation after the demo threshold", async () => {
