@@ -263,3 +263,5 @@ app.post("/ask", async (req, res) => {
 app.get("/admin", authenticateToken, requireAdmin, (req: AuthenticatedRequest, res) => {
   res.json({ message: "Admin access granted", user: req.user });
 });
+
+export default app

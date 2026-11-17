@@ -6,8 +6,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
+    "start": "node dist/server.js",
     "build": "tsc",
+    "vercel-build": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "eval": "tsx evals/run.ts"

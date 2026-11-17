@@ -1,4 +1,8 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000'
+// API base URL - uses Vercel binding BACKEND_URL in production, VITE_API_BASE for preview, localhost for dev
+// In Vite, process.env is not available at build time. BACKEND_URL is injected by Vercel as VITE_BACKEND_URL
+const API_BASE = import.meta.env.VITE_API_BASE ||
+  import.meta.env.VITE_BACKEND_URL ||
+  'http://localhost:3000'
 
 export interface InvestigationResult {
   transactionId: string
@@ -42,12 +46,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json()
 }
 
+function getHeaders(): HeadersInit {
+  return {
+    'Content-Type': 'application/json'
+  }
+}
+
 export async function investigateTransaction(id: string): Promise<InvestigationResult> {
   const response = await fetch(`${API_BASE}/investigate/${id}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    headers: getHeaders(),
+    credentials: 'include'
   })
   return handleResponse<InvestigationResult>(response)
 }
@@ -55,9 +64,8 @@ export async function investigateTransaction(id: string): Promise<InvestigationR
 export async function askQuestion(question: string): Promise<AskResult> {
   const response = await fetch(`${API_BASE}/ask`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: getHeaders(),
+    credentials: 'include',
     body: JSON.stringify({ question })
   })
   return handleResponse<AskResult>(response)
@@ -66,9 +74,8 @@ export async function askQuestion(question: string): Promise<AskResult> {
 export async function getTransactions(): Promise<TransactionsResult> {
   const response = await fetch(`${API_BASE}/transactions`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    headers: getHeaders(),
+    credentials: 'include'
   })
   return handleResponse<TransactionsResult>(response)
 }
