@@ -60,6 +60,49 @@ type CaseResult = {
 const baseUrl =
   process.env.EVAL_BASE_URL ?? "http://localhost:3000";
 
+// Cookie jar for maintaining session
+const cookieJar = new Map<string, string>();
+
+function parseCookies(setCookieHeader: string | null): void {
+  if (!setCookieHeader) return;
+
+  // Handle multiple cookies (comma-separated)
+  const cookies = setCookieHeader.split(",");
+  for (const cookie of cookies) {
+    const parts = cookie.split(";");
+    const [nameValue] = parts;
+    const [name, value] = nameValue.trim().split("=");
+    if (name && value) {
+      cookieJar.set(name.trim(), value.trim());
+    }
+  }
+}
+
+function getCookieHeader(): string {
+  const cookies: string[] = [];
+  for (const [name, value] of cookieJar.entries()) {
+    cookies.push(`${name}=${value}`);
+  }
+  return cookies.join("; ");
+}
+
+async function getCsrfToken(): Promise<string | null> {
+  try {
+    const response = await fetch(`${baseUrl}/health`, {
+      method: "GET",
+      headers: {
+        "Cookie": getCookieHeader()
+      }
+    });
+
+    parseCookies(response.headers.get("set-cookie"));
+
+    return cookieJar.get("csrf_token") || null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadCases(): Promise<EvaluationCase[]> {
   const fileContents = await readFile(
     new URL("./cases.json", import.meta.url),
@@ -118,6 +161,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Get CSRF token for POST requests
+  const csrfToken = await getCsrfToken();
+  if (!csrfToken) {
+    console.warn("Warning: Could not obtain CSRF token, POST requests may fail");
+  }
+
   let passed = 0;
   let failed = 0;
 
@@ -137,15 +186,25 @@ async function main(): Promise<void> {
     let body: EvaluationResponse;
 
     try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "Cookie": getCookieHeader()
+      };
+
+      if (csrfToken) {
+        headers["X-CSRF-Token"] = csrfToken;
+      }
+
       response = await fetch(`${baseUrl}/ask`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers,
         body: JSON.stringify({
           question: testCase.question
         })
       });
+
+      // Update cookie jar with any new cookies from response
+      parseCookies(response.headers.get("set-cookie"));
 
       body = (await response.json()) as EvaluationResponse;
     } catch (error) {
